@@ -36,7 +36,17 @@ TIME_MINUTE = 60
 TIME_HOUR = 3600
 TIME_DAY = 86400
 TIME_WEEK = 604800
+TIME_MONTH = 2629800
+TIME_YEAR = 31557600
 
+# Rough estimates for this are fine, we lose more granularity anyways with conversion
+# And as a human, 28 days ago and 35 days ago are both things
+# I would describe as "a month ago"
+# Below are the calculations I ran to get the numbers above
+# DAYS_PER_YEAR = 365.25 # Leap years add a day every 4 years
+# TIME_YEAR = TIME_DAY * DAYS_PER_YEAR
+# MONTHS_PER_YEAR = 12
+# TIME_MONTH = TIME_YEAR / MONTHS_PER_YEAR
 
 def _total_seconds(t):
     '''
@@ -128,6 +138,64 @@ def _to_date(t):
     else:
         raise TypeError
 
+def full_delta(t1, t2):
+    '''
+    Calculates the estimated delta between two datetime objects in fuzzy
+    human-readable format.
+    Follows same logic as momentjs
+
+    Range                       |   Sample Output
+    ----------------------------|----------------
+    0 to 44 seconds             | a few seconds ago
+    44 to 44 seconds            | 44 seconds ago
+    45 to 89 seconds            | a minute ago
+    90 seconds to 44 minutes    | 2 minutes ago ... 44 minutes ago
+    45 to 89 minutes            | an hour ago
+    90 minutes to 21 hours      | 2 hours ago ... 21 hours ago
+    22 to 35 hours              | a day ago
+    36 hours to 25 days         | 2 days ago ... 25 days ago
+    26 to 45 days               | a month ago
+    45 to 319 days              | 2 months ago ... 10 months ago
+    320 to 547 days (1.5 years) | a year ago
+    548 days+                   | 2 years ago ... 20 years ago
+
+    :param t1: timestamp, :class:`datetime.date` or :class:`datetime.datetime`
+               object
+    :param t2: timestamp, :class:`datetime.date` or :class:`datetime.datetime`
+               object
+
+    >>> import time
+    >>> from datetime import datetime, timedelta
+    >>> now = datetime.datetime(now)
+    >>> print(full_delta(now, now + timedelta(seconds=15)))
+    a few seconds from now
+    >>> print(full_delta(now, now + timedelta(seconds=45)))
+    a minute from now
+    >>> print(full_delta(now, now + timedelta(seconds=90)))
+    2 minutes from now
+    >>> print(full_delta(now, now - timedelta(seconds=90)))
+    2 minutes ago
+    >>> print(full_delta(now, now - timedelta(minutes=45)))
+    an hour ago
+    >>> print(full_delta(now, now - timedelta(minutes=90)))
+    2 hours ago
+    >>> print(full_delta(now, now - timedelta(hours=22)))
+    a day ago
+    >>> print(full_delta(now, now - timedelta(hours=36)))
+    2 days ago
+    >>> print(full_delta(now, now - timedelta(days=26)))
+    a month ago
+    >>> print(full_delta(now, now - timedelta(days=45)))
+    2 months ago
+    >>> print(full_delta(now, now - timedelta(days=320)))
+    a year ago
+    >>> print(full_delta(now, now - timedelta(days=548)))
+    2 years ago
+
+    '''
+    t1 = _to_datetime(t1)
+    t2 = _to_datetime(t2)
+    diff = t1 - t2
 
 def delta(t1, t2, words=True, justnow=datetime.timedelta(seconds=10)):
     '''
